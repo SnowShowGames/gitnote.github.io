@@ -1,7 +1,7 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Блокнот</title>
+    <title>Блокнот + GitHub Sync</title>
     <style>
         :root {
             --bg-main: #f5f5f7;
@@ -11,24 +11,12 @@
             --text-muted: #86868b;
             --border: #e5e5ea;
             --danger: #ff3b30;
+            --success: #34c759;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { display: flex; height: 100vh; background: var(--bg-main); color: var(--text-main); overflow: hidden; }
 
-        body {
-            display: flex;
-            height: 100vh;
-            background: var(--bg-main);
-            color: var(--text-main);
-            overflow: hidden;
-        }
-
-        /* Боковая панель */
         .sidebar {
             width: 300px;
             background: var(--bg-sidebar);
@@ -36,17 +24,15 @@
             display: flex;
             flex-direction: column;
         }
-
         .sidebar-header {
             padding: 16px;
             border-bottom: 1px solid var(--border);
             display: flex;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
         }
-
         button {
-            padding: 8px 12px;
+            padding: 8px 10px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
@@ -54,72 +40,24 @@
             font-weight: 500;
             transition: opacity 0.2s;
         }
+        button:hover { opacity: 0.85; }
+        .btn-primary { background: var(--accent); color: white; width: 100%; margin-bottom: 4px; }
+        .btn-secondary { background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border); flex: 1; }
+        .btn-danger { background: transparent; color: var(--danger); padding: 4px 8px; }
 
-            button:hover {
-                opacity: 0.85;
-            }
-
-        .btn-primary {
-            background: var(--accent);
-            color: white;
-            flex: 1;
-        }
-
-        .btn-secondary {
-            background: var(--bg-main);
-            color: var(--text-main);
-            border: 1px solid var(--border);
-        }
-
-        .btn-danger {
-            background: transparent;
-            color: var(--danger);
-            padding: 4px 8px;
-        }
-
-        .notes-list {
-            flex: 1;
-            overflow-y: auto;
-        }
-
+        .notes-list { flex: 1; overflow-y: auto; }
         .note-item {
             padding: 14px 16px;
             border-bottom: 1px solid var(--border);
             cursor: pointer;
             transition: background 0.15s;
         }
+        .note-item:hover { background: #f9f9fb; }
+        .note-item.active { background: #e8f2ff; border-left: 3px solid var(--accent); }
+        .note-item-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .note-item-date { font-size: 12px; color: var(--text-muted); }
 
-            .note-item:hover {
-                background: #f9f9fb;
-            }
-
-            .note-item.active {
-                background: #e8f2ff;
-                border-left: 3px solid var(--accent);
-            }
-
-        .note-item-title {
-            font-weight: 600;
-            font-size: 15px;
-            margin-bottom: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .note-item-date {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        /* Рабочая область */
-        .editor {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: #ffffff;
-        }
-
+        .editor { flex: 1; display: flex; flex-direction: column; background: #ffffff; }
         .editor-toolbar {
             padding: 12px 24px;
             border-bottom: 1px solid var(--border);
@@ -129,6 +67,11 @@
             color: var(--text-muted);
             font-size: 13px;
         }
+        .sync-badge { display: flex; align-items: center; gap: 8px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
+        .dot.ok { background: var(--success); }
+        .dot.syncing { background: var(--accent); }
+        .dot.err { background: var(--danger); }
 
         #note-title {
             border: none;
@@ -138,7 +81,6 @@
             padding: 20px 24px 10px;
             width: 100%;
         }
-
         #note-body {
             flex: 1;
             border: none;
@@ -148,7 +90,6 @@
             line-height: 1.6;
             resize: none;
         }
-
         .empty-state {
             flex: 1;
             display: flex;
@@ -157,52 +98,103 @@
             color: var(--text-muted);
         }
 
-        /* Адаптив для телефона */
+        /* Модальное окно настроек */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal {
+            background: white;
+            padding: 24px;
+            border-radius: 14px;
+            width: 90%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .modal h3 { font-size: 18px; }
+        .modal label { font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px; }
+        .modal input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+
         @media (max-width: 700px) {
-            body {
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: 100%;
-                height: 40vh;
-                border-right: none;
-                border-bottom: 1px solid var(--border);
-            }
-
-            .editor {
-                height: 60vh;
-            }
+            body { flex-direction: column; }
+            .sidebar { width: 100%; height: 40vh; border-right: none; border-bottom: 1px solid var(--border); }
+            .editor { height: 60vh; }
         }
     </style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <button class="btn-primary" onclick="createNote()">+ Новая заметка</button>
-            <button class="btn-secondary" onclick="exportJSON()" title="Скачать базу в JSON">Экспорт</button>
-            <button class="btn-secondary" onclick="document.getElementById('import-file').click()" title="Загрузить JSON">Импорт</button>
-            <input type="file" id="import-file" accept=".json" style="display: none" onchange="importJSON(event)">
-        </div>
-        <div class="notes-list" id="notes-list"></div>
+<div class="sidebar">
+    <div class="sidebar-header">
+        <button class="btn-primary" onclick="createNote()">+ Новая заметка</button>
+        <button class="btn-secondary" onclick="openSettings()">⚙️ GitHub</button>
+        <button class="btn-secondary" onclick="pullFromGitHub(true)" title="Обновить из GitHub">🔄</button>
+        <button class="btn-secondary" onclick="exportJSON()" title="Скачать JSON">⬇️</button>
     </div>
+    <div class="notes-list" id="notes-list"></div>
+</div>
 
-    <div class="editor" id="editor-container">
-        <div class="empty-state" id="empty-state">Выберите или создайте заметку</div>
-        <div id="active-editor" style="display: none; flex-direction: column; height: 100%;">
-            <div class="editor-toolbar">
-                <span id="save-status">Сохранено локально</span>
-                <button class="btn-danger" onclick="deleteCurrentNote()">Удалить заметку</button>
+<div class="editor" id="editor-container">
+    <div class="empty-state" id="empty-state">Выберите или создайте заметку</div>
+    <div id="active-editor" style="display: none; flex-direction: column; height: 100%;">
+        <div class="editor-toolbar">
+            <div class="sync-badge">
+                <span class="dot" id="sync-dot"></span>
+                <span id="save-status">Локально</span>
             </div>
-            <input type="text" id="note-title" placeholder="Заголовок..." oninput="updateCurrentNote()">
-            <textarea id="note-body" placeholder="Начните писать..."></textarea>
+            <button class="btn-danger" onclick="deleteCurrentNote()">Удалить заметку</button>
+        </div>
+        <input type="text" id="note-title" placeholder="Заголовок..." oninput="updateCurrentNote()">
+        <textarea id="note-body" placeholder="Начните писать..."></textarea>
+    </div>
+</div>
+
+<!-- Окно настройки GitHub Sync -->
+<div class="modal-backdrop" id="settings-modal">
+    <div class="modal">
+        <h3>Синхронизация с GitHub</h3>
+        <div>
+            <label>Репозиторий (формат: username/repo-name)</label>
+            <input type="text" id="gh-repo" placeholder="SnowShowGames/my-notes-data">
+        </div>
+        <div>
+            <label>Путь к файлу в репозитории</label>
+            <input type="text" id="gh-path" value="notes.json">
+        </div>
+        <div>
+            <label>Personal Access Token (Fine-grained, Contents: R/W)</label>
+            <input type="password" id="gh-token" placeholder="github_pat_...">
+        </div>
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeSettings()">Отмена</button>
+            <button class="btn-primary" style="width: auto; margin: 0;" onclick="saveSettings()">Сохранить и синхронизировать</button>
         </div>
     </div>
+</div>
 
-    <script>const STORAGE_KEY = 'github_pages_notes_v1';
+<script>
+    const STORAGE_KEY = 'github_pages_notes_v1';
+    const CONFIG_KEY = 'github_sync_config_v1';
+
     let notes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    let ghConfig = JSON.parse(localStorage.getItem(CONFIG_KEY)) || { repo: '', path: 'notes.json', token: '' };
     let activeNoteId = null;
+    let fileSha = null;
+    let syncTimeout = null;
 
     const notesListEl = document.getElementById('notes-list');
     const emptyStateEl = document.getElementById('empty-state');
@@ -210,21 +202,151 @@
     const titleInput = document.getElementById('note-title');
     const bodyInput = document.getElementById('note-body');
     const statusEl = document.getElementById('save-status');
+    const dotEl = document.getElementById('sync-dot');
 
-    // Сохранение в localStorage браузера
-    function saveToStorage() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-        statusEl.textContent = 'Сохранено • ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+    function setStatus(text, state = '') {
+        statusEl.textContent = text;
+        dotEl.className = 'dot ' + state;
     }
 
-    // Отрисовка списка заметок
+    function utf8ToBase64(str) {
+        const bytes = new TextEncoder().encode(str);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+    }
+
+    function base64ToUtf8(b64) {
+        const binary = atob(b64.replace(/\s/g, ''));
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return new TextDecoder().decode(bytes);
+    }
+
+    async function pullFromGitHub(notify = false) {
+        if (!ghConfig.repo || !ghConfig.token) return;
+        setStatus('Загрузка из GitHub...', 'syncing');
+
+        try {
+            const url = `https://api.github.com/repos/${ghConfig.repo}/contents/${ghConfig.path}`;
+            const res = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${ghConfig.token}`,
+                    'Accept': 'application/vnd.github+json'
+                },
+                cache: 'no-store'
+            });
+
+            if (res.status === 404) {
+                fileSha = null;
+                setStatus('Файл будет создан при сохранении', 'ok');
+                if (notes.length > 0) pushToGitHub();
+                return;
+            }
+
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const data = await res.json();
+            fileSha = data.sha;
+            const decodedText = base64ToUtf8(data.content);
+            const remoteNotes = JSON.parse(decodedText);
+
+            if (Array.isArray(remoteNotes)) {
+                notes = remoteNotes;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+                renderList();
+                if (activeNoteId) {
+                    const current = notes.find(n => n.id === activeNoteId);
+                    if (current) {
+                        titleInput.value = current.title;
+                        bodyInput.value = current.body;
+                    }
+                } else if (notes.length > 0) {
+                    selectNote(notes[0].id);
+                }
+                setStatus('Синхронизировано с GitHub', 'ok');
+                if (notify) alert('Заметки обновлены с GitHub!');
+            }
+        } catch (err) {
+            console.error(err);
+            setStatus('Ошибка загрузки: ' + err.message, 'err');
+        }
+    }
+
+    async function pushToGitHub() {
+        if (!ghConfig.repo || !ghConfig.token) return;
+        setStatus('Отправка в GitHub...', 'syncing');
+
+        try {
+            const url = `https://api.github.com/repos/${ghConfig.repo}/contents/${ghConfig.path}`;
+            
+            if (!fileSha) {
+                const checkRes = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${ghConfig.token}` },
+                    cache: 'no-store'
+                });
+                if (checkRes.ok) {
+                    const checkData = await checkRes.json();
+                    fileSha = checkData.sha;
+                }
+            }
+
+            const payload = {
+                message: `Update notes (${new Date().toLocaleString('ru-RU')})`,
+                content: utf8ToBase64(JSON.stringify(notes, null, 2))
+            };
+            if (fileSha) payload.sha = fileSha;
+
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${ghConfig.token}`,
+                    'Accept': 'application/vnd.github+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                if (res.status === 409) {
+                    // Конфликт версий: сбрасываем SHA и пробуем перечитать
+                    fileSha = null;
+                    throw new Error('Конфликт версий, нажмите 🔄');
+                }
+                throw new Error(`HTTP ${res.status}`);
+            }
+
+            const result = await res.json();
+            fileSha = result.content.sha;
+            setStatus('Синхронизировано • ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), 'ok');
+        } catch (err) {
+            console.error(err);
+            setStatus('Ошибка отправки: ' + err.message, 'err');
+        }
+    }
+
+    function saveToStorage() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+        if (ghConfig.repo && ghConfig.token) {
+            setStatus('Ожидание отправки...', 'syncing');
+            clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(pushToGitHub, 2000);
+        } else {
+            setStatus('Сохранено локально');
+        }
+    }
+
     function renderList() {
         notesListEl.innerHTML = '';
         notes.sort((a, b) => b.updatedAt - a.updatedAt).forEach(note => {
             const div = document.createElement('div');
             div.className = 'note-item' + (note.id === activeNoteId ? ' active' : '');
             div.onclick = () => selectNote(note.id);
-
+            
             const dateStr = new Date(note.updatedAt).toLocaleDateString('ru-RU', {
                 day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
             });
@@ -238,12 +360,7 @@
     }
 
     function createNote() {
-        const newNote = {
-            id: Date.now().toString(),
-            title: '',
-            body: '',
-            updatedAt: Date.now()
-        };
+        const newNote = { id: Date.now().toString(), title: '', body: '', updatedAt: Date.now() };
         notes.unshift(newNote);
         saveToStorage();
         selectNote(newNote.id);
@@ -285,45 +402,36 @@
         activeEditorEl.style.display = 'none';
     }
 
-    // Экспорт в скачиваемый .json файл
     function exportJSON() {
-        const dataStr = JSON.stringify(notes, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-
+        const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
-        a.href = url;
+        a.href = URL.createObjectURL(blob);
         a.download = `notes_backup_${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
-        URL.revokeObjectURL(url);
     }
 
-    // Импорт из .json файла
-    function importJSON(event) {
-        const file = event.target.files[0];
-        if (!file) return;
+    // Управление модальным окном настроек
+    function openSettings() {
+        document.getElementById('gh-repo').value = ghConfig.repo || '';
+        document.getElementById('gh-path').value = ghConfig.path || 'notes.json';
+        document.getElementById('gh-token').value = ghConfig.token || '';
+        document.getElementById('settings-modal').style.display = 'flex';
+    }
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const imported = JSON.parse(e.target.result);
-                if (Array.isArray(imported)) {
-                    notes = imported;
-                    activeNoteId = null;
-                    saveToStorage();
-                    renderList();
-                    emptyStateEl.style.display = 'flex';
-                    activeEditorEl.style.display = 'none';
-                    alert('Заметки успешно загружены!');
-                } else {
-                    alert('Неверный формат файла JSON.');
-                }
-            } catch (err) {
-                alert('Ошибка чтения JSON: ' + err.message);
-            }
+    function closeSettings() {
+        document.getElementById('settings-modal').style.display = 'none';
+    }
+
+    function saveSettings() {
+        ghConfig = {
+            repo: document.getElementById('gh-repo').value.trim(),
+            path: document.getElementById('gh-path').value.trim() || 'notes.json',
+            token: document.getElementById('gh-token').value.trim()
         };
-        reader.readAsText(file);
-        event.target.value = ''; // сброс input
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(ghConfig));
+        closeSettings();
+        fileSha = null;
+        pullFromGitHub(true);
     }
 
     function escapeHtml(text) {
@@ -332,8 +440,9 @@
         return div.innerHTML;
     }
 
-    // Инициализация при запуске
     renderList();
-    if (notes.length > 0) selectNote(notes[0].id);</script>
+    if (notes.length > 0) selectNote(notes[0].id);
+    if (ghConfig.repo && ghConfig.token) pullFromGitHub();
+</script>
 </body>
 </html>
