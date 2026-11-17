@@ -1,0 +1,339 @@
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Блокнот</title>
+    <style>
+        :root {
+            --bg-main: #f5f5f7;
+            --bg-sidebar: #ffffff;
+            --accent: #007aff;
+            --text-main: #1d1d1f;
+            --text-muted: #86868b;
+            --border: #e5e5ea;
+            --danger: #ff3b30;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            background: var(--bg-main);
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        /* Боковая панель */
+        .sidebar {
+            width: 300px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+
+            button:hover {
+                opacity: 0.85;
+            }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-secondary {
+            background: var(--bg-main);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+
+        .btn-danger {
+            background: transparent;
+            color: var(--danger);
+            padding: 4px 8px;
+        }
+
+        .notes-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .note-item {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+            .note-item:hover {
+                background: #f9f9fb;
+            }
+
+            .note-item.active {
+                background: #e8f2ff;
+                border-left: 3px solid var(--accent);
+            }
+
+        .note-item-title {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .note-item-date {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Рабочая область */
+        .editor {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+        }
+
+        .editor-toolbar {
+            padding: 12px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        #note-title {
+            border: none;
+            outline: none;
+            font-size: 24px;
+            font-weight: 700;
+            padding: 20px 24px 10px;
+            width: 100%;
+        }
+
+        #note-body {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 10px 24px 24px;
+            font-size: 16px;
+            line-height: 1.6;
+            resize: none;
+        }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+        }
+
+        /* Адаптив для телефона */
+        @media (max-width: 700px) {
+            body {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: 40vh;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .editor {
+                height: 60vh;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <button class="btn-primary" onclick="createNote()">+ Новая заметка</button>
+            <button class="btn-secondary" onclick="exportJSON()" title="Скачать базу в JSON">Экспорт</button>
+            <button class="btn-secondary" onclick="document.getElementById('import-file').click()" title="Загрузить JSON">Импорт</button>
+            <input type="file" id="import-file" accept=".json" style="display: none" onchange="importJSON(event)">
+        </div>
+        <div class="notes-list" id="notes-list"></div>
+    </div>
+
+    <div class="editor" id="editor-container">
+        <div class="empty-state" id="empty-state">Выберите или создайте заметку</div>
+        <div id="active-editor" style="display: none; flex-direction: column; height: 100%;">
+            <div class="editor-toolbar">
+                <span id="save-status">Сохранено локально</span>
+                <button class="btn-danger" onclick="deleteCurrentNote()">Удалить заметку</button>
+            </div>
+            <input type="text" id="note-title" placeholder="Заголовок..." oninput="updateCurrentNote()">
+            <textarea id="note-body" placeholder="Начните писать..."></textarea>
+        </div>
+    </div>
+
+    <script>const STORAGE_KEY = 'github_pages_notes_v1';
+    let notes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    let activeNoteId = null;
+
+    const notesListEl = document.getElementById('notes-list');
+    const emptyStateEl = document.getElementById('empty-state');
+    const activeEditorEl = document.getElementById('active-editor');
+    const titleInput = document.getElementById('note-title');
+    const bodyInput = document.getElementById('note-body');
+    const statusEl = document.getElementById('save-status');
+
+    // Сохранение в localStorage браузера
+    function saveToStorage() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+        statusEl.textContent = 'Сохранено • ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+    }
+
+    // Отрисовка списка заметок
+    function renderList() {
+        notesListEl.innerHTML = '';
+        notes.sort((a, b) => b.updatedAt - a.updatedAt).forEach(note => {
+            const div = document.createElement('div');
+            div.className = 'note-item' + (note.id === activeNoteId ? ' active' : '');
+            div.onclick = () => selectNote(note.id);
+
+            const dateStr = new Date(note.updatedAt).toLocaleDateString('ru-RU', {
+                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+            });
+
+            div.innerHTML = `
+                <div class="note-item-title">${escapeHtml(note.title) || 'Без названия'}</div>
+                <div class="note-item-date">${dateStr}</div>
+            `;
+            notesListEl.appendChild(div);
+        });
+    }
+
+    function createNote() {
+        const newNote = {
+            id: Date.now().toString(),
+            title: '',
+            body: '',
+            updatedAt: Date.now()
+        };
+        notes.unshift(newNote);
+        saveToStorage();
+        selectNote(newNote.id);
+        titleInput.focus();
+    }
+
+    function selectNote(id) {
+        activeNoteId = id;
+        const note = notes.find(n => n.id === id);
+        if (!note) return;
+
+        emptyStateEl.style.display = 'none';
+        activeEditorEl.style.display = 'flex';
+        titleInput.value = note.title;
+        bodyInput.value = note.body;
+        renderList();
+    }
+
+    function updateCurrentNote() {
+        const note = notes.find(n => n.id === activeNoteId);
+        if (!note) return;
+
+        note.title = titleInput.value;
+        note.body = bodyInput.value;
+        note.updatedAt = Date.now();
+        saveToStorage();
+        renderList();
+    }
+
+    bodyInput.addEventListener('input', updateCurrentNote);
+
+    function deleteCurrentNote() {
+        if (!activeNoteId || !confirm('Удалить эту заметку?')) return;
+        notes = notes.filter(n => n.id !== activeNoteId);
+        activeNoteId = null;
+        saveToStorage();
+        renderList();
+        emptyStateEl.style.display = 'flex';
+        activeEditorEl.style.display = 'none';
+    }
+
+    // Экспорт в скачиваемый .json файл
+    function exportJSON() {
+        const dataStr = JSON.stringify(notes, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `notes_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Импорт из .json файла
+    function importJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (Array.isArray(imported)) {
+                    notes = imported;
+                    activeNoteId = null;
+                    saveToStorage();
+                    renderList();
+                    emptyStateEl.style.display = 'flex';
+                    activeEditorEl.style.display = 'none';
+                    alert('Заметки успешно загружены!');
+                } else {
+                    alert('Неверный формат файла JSON.');
+                }
+            } catch (err) {
+                alert('Ошибка чтения JSON: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; // сброс input
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Инициализация при запуске
+    renderList();
+    if (notes.length > 0) selectNote(notes[0].id);</script>
+</body>
+</html>
